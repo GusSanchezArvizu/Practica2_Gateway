@@ -97,7 +97,8 @@ source/lwip_mqtt_freertos.o source/lwip_mqtt_freertos.d: \
  D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\mdio/fsl_enet_mdio.h \
  D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\drivers/fsl_enet.h \
  D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\mdio/fsl_mdio.h \
- D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\drivers/fsl_flexcan.h
+ D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\drivers/fsl_flexcan.h \
+ D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\drivers/fsl_adc16.h
 
 D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\lwip\src\include/lwip/opt.h:
 
@@ -294,3 +295,5 @@ D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\fr
 D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\mdio/fsl_mdio.h:
 
 D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\drivers/fsl_flexcan.h:
+
+D:\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\drivers/fsl_adc16.h:

@@ -38,6 +38,8 @@
 #include "fsl_phyksz8081.h"
 #include "fsl_enet_mdio.h"
 #include "fsl_flexcan.h"
+#include "fsl_adc16.h"
+
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -49,6 +51,13 @@
 #define DLC                    (8)
 #define MSG1TxID               (0x123)
 #define MSG1RxID               (0x124)
+
+#define DEMO_ADC16_BASE          ADC0
+#define DEMO_ADC16_CHANNEL_GROUP 0U
+#define DEMO_ADC16_USER_CHANNEL  12U
+#define MAX_ADC_VALUE 4095U
+#define MAX_PERCENTAGE 100U
+
 /* MAC address configuration. */
 #define configMAC_ADDR                     \
     {                                      \
@@ -83,7 +92,7 @@
 #endif /* EXAMPLE_NETIF_INIT_FN */
 
 /*! @brief MQTT server host name or IP address. */
-#define EXAMPLE_MQTT_SERVER_HOST "broker.hivemq.com"
+#define EXAMPLE_MQTT_SERVER_HOST  "io.adafruit.com"
 
 /*! @brief MQTT server port number. */
 #define EXAMPLE_MQTT_SERVER_PORT 1883
@@ -122,8 +131,8 @@ static char client_id[40];
 /*! @brief MQTT client information. */
 static const struct mqtt_connect_client_info_t mqtt_client_info = {
     .client_id   = (const char *)&client_id[0],
-    .client_user = NULL,
-    .client_pass = NULL,
+    .client_user = "Omar_SP",
+    .client_pass = "aio_Xtzg2636cg1uVzwEKgnej1gD8fzy",
     .keep_alive  = 100,
     .will_topic  = NULL,
     .will_msg    = NULL,
@@ -143,6 +152,33 @@ static volatile bool connected = false;
 /*******************************************************************************
  * Code
  ******************************************************************************/
+
+uint16_t get_adc_value() {
+	/* Using ADC polling example code */
+    static int adc_init = 0;
+    static adc16_config_t adc16ConfigStruct;
+    static adc16_channel_config_t adc16ChannelConfigStruct;
+
+    if (adc_init == 0) {
+    	 ADC16_GetDefaultConfig(&adc16ConfigStruct);
+    	 ADC16_Init(DEMO_ADC16_BASE, &adc16ConfigStruct);
+    	 ADC16_EnableHardwareTrigger(DEMO_ADC16_BASE, false); /* Make sure the software trigger is used. */
+		adc16ChannelConfigStruct.channelNumber                        = DEMO_ADC16_USER_CHANNEL;
+		adc16ChannelConfigStruct.enableInterruptOnConversionCompleted = false;
+
+    	adc_init = 1;
+    }
+
+    ADC16_SetChannelConfig(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP, &adc16ChannelConfigStruct);
+    while (0U == (kADC16_ChannelConversionDoneFlag &
+                  ADC16_GetChannelStatusFlags(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP)))
+    {
+    }
+    uint16_t adc_value = ADC16_GetChannelConversionValue(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP);
+    PRINTF("ADC Value: %d\r\n", adc_value);
+    return adc_value;
+}
+
 
 /*!
  * @brief Called when subscription request finishes.
@@ -203,8 +239,8 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
  */
 static void mqtt_subscribe_topics(mqtt_client_t *client)
 {
-    static const char *topics[] = {"lwip_topic/#", "lwip_other/#"};
-    int qos[]                   = {0, 1};
+    static const char *topics[] = {"Omar_SP/feeds/can-status", "Omar_SP/feeds/battery-level"};
+    int qos[]                   = {1, 1};
     err_t err;
     int i;
 
@@ -307,8 +343,8 @@ static void mqtt_message_published_cb(void *arg, err_t err)
  */
 static void publish_message(void *ctx)
 {
-    static const char *topic   = "lwip_topic/100";
-    static const char *message = "message from board";
+    static const char *topic   = "Omar_SP/feeds/can-status";
+    static const char *message = "50";
 
     LWIP_UNUSED_ARG(ctx);
 
@@ -382,7 +418,7 @@ static void app_thread(void *arg)
     }
 
     /* Publish some messages */
-    for (i = 0; i < 5;)
+    for (;;)
     {
         if (connected)
         {
@@ -393,7 +429,7 @@ static void app_thread(void *arg)
             }
             i++;
         }
-
+        //Frecuencia de transmision de publicacion de mensajes
         sys_msleep(1000U);
     }
 
