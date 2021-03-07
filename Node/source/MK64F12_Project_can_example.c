@@ -57,6 +57,7 @@
 #define MSGTxBatID             (0x25)
 #define MSGTxKeepAliveID       (0x100)
 #define MSG1RxID               (0x123)
+#define MSGRxFreqBat		   (0x55)
 #define DEMO_ADC16_BASE          ADC0
 #define DEMO_ADC16_CHANNEL_GROUP 0U
 #define DEMO_ADC16_USER_CHANNEL  12U
@@ -83,9 +84,9 @@ volatile bool txComplete = pdFALSE;
 volatile bool rxComplete = pdFALSE;
 flexcan_handle_t flexcanHandle;
 flexcan_mb_transfer_t txXfer, rxXfer;
-flexcan_frame_t txFrame, rxFrame;
+flexcan_frame_t txFrameBatLevel, rxFrame, txFrameKeepAlive;
 uint8_t RxMBID;
-uint8_t g_period_ms = 1000;
+uint16_t g_period_ms = 1000;
 
 
 /*******************************************************************************
@@ -177,7 +178,7 @@ void CAN_Init(void){
     /* Setup Rx Message Buffer. */
     mbConfig.format = kFLEXCAN_FrameFormatStandard;
     mbConfig.type   = kFLEXCAN_FrameTypeData;
-    mbConfig.id     = FLEXCAN_ID_STD(MSG1RxID);
+    mbConfig.id     = FLEXCAN_ID_STD(MSGRxFreqBat);
     FLEXCAN_SetRxMbConfig(EXAMPLE_CAN, RX_MESSAGE_BUFFER_NUM, &mbConfig, true);
     /* Start receive data through Rx Message Buffer. */
     rxXfer.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
@@ -186,41 +187,56 @@ void CAN_Init(void){
     /* Setup Tx Message Buffer. */
     FLEXCAN_SetTxMbConfig(EXAMPLE_CAN, TX_MESSAGE_BUFFER_NUM, true);
     /* Prepare Tx Frame for sending. */
-    txFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
-    txFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
-    txFrame.id     = FLEXCAN_ID_STD(MSGTxBatID);
-    txFrame.length = (uint8_t)DLC;
+    txFrameBatLevel.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
+    txFrameBatLevel.type   = (uint8_t)kFLEXCAN_FrameTypeData;
+    txFrameBatLevel.id     = FLEXCAN_ID_STD(MSGTxBatID);
+    txFrameBatLevel.length = (uint8_t)DLC;
 
+    txFrameKeepAlive.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
+    txFrameKeepAlive.type   = (uint8_t)kFLEXCAN_FrameTypeData;
+    txFrameKeepAlive.id     = FLEXCAN_ID_STD(MSGTxKeepAliveID );
+    txFrameKeepAlive.length = (uint8_t)DLC;
 
     /* Create FlexCAN handle structure and set call back function. */
     FLEXCAN_TransferCreateHandle(EXAMPLE_CAN, &flexcanHandle, flexcan_callback, NULL);
 }
 
 
+void vTaskTxKeepAlive(void * pvParameters)
+{
+    TickType_t xLastWakeTime;
+    const TickType_t xPeriod = pdMS_TO_TICKS(1000);
+    xLastWakeTime = xTaskGetTickCount();
+
+    for(;;){
+		vTaskDelayUntil(&xLastWakeTime, xPeriod);
+
+        txFrameKeepAlive.dataByte0 = 1;
+        txFrameKeepAlive.dataByte1 = 0x0;
+        txFrameKeepAlive.dataByte2 = 0x0;
+        txFrameKeepAlive.dataByte3 = 0x0;
+        txFrameKeepAlive.dataByte4 = 0x0;
+        txFrameKeepAlive.dataByte5 = 0x0;
+        txFrameKeepAlive.dataByte6 = 0x0;
+        txFrameKeepAlive.dataByte7 = 0x0;
+
+        /* Send data through Tx Message Buffer. */
+        txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
+        txXfer.frame = &txFrameKeepAlive;
+        (void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
+    }
+}
+
 void vTaskTxAdc(void * pvParameters)
 {
     TickType_t xLastWakeTime;
-    const TickType_t xPeriod = pdMS_TO_TICKS(g_period_ms);
+    TickType_t xPeriod = pdMS_TO_TICKS(g_period_ms);
     xLastWakeTime = xTaskGetTickCount();
-    static uint8_t TxByte0 = 0;
-    static uint16_t Ticksadc_percent = 0;
 
-     /* Enter the loop that defines the task behavior. */
-     for(;;){
-         xPeriod = pdMS_TO_TICKS(g_period_ms);
-         vTaskDelayUntil(&xLastWakeTime, xPeriod);
+    for(;;){
 
-        /*Increment a random value for demo*/
-         Ticksadc_percent++;
-         if(Ticksadc_percent > 300){
-             if(TxByte0 < 100){
-                 TxByte0 += 5;
-             }else{
-                 TxByte0 = 0;
-             }
-             Ticksadc_percent = 0;
-         }else{}
-
+		xPeriod = pdMS_TO_TICKS(g_period_ms);
+		vTaskDelayUntil(&xLastWakeTime, xPeriod);
          /* Perform the periodic actions here. */
          // txFrame.dataByte0 = TxByte0; txFrame.dataByte1 = 0x019; txFrame.dataByte2 = 0x02;
          // txFrame.dataByte3 = 0x04; txFrame.dataByte4 = 0x04; txFrame.dataByte5 = 0x05;
@@ -233,27 +249,27 @@ void vTaskTxAdc(void * pvParameters)
         ascii[1] = ((uint16_t)adc_percent/10)%10 + 0x30;
         ascii[2] = ((uint16_t)adc_percent/100)%10 + 0x30;
 
-        txFrame.dataByte0 = ascii[0];
-        txFrame.dataByte1 = ascii[1];
-        txFrame.dataByte2 = ascii[2];
-        txFrame.dataByte3 = 0x0;
-        txFrame.dataByte4 = 0x0;
-        txFrame.dataByte5 = 0x0;
-        txFrame.dataByte6 = 0x0;
-        txFrame.dataByte7 = 0x0;
+        txFrameBatLevel.dataByte0 = ascii[0];
+        txFrameBatLevel.dataByte1 = ascii[1];
+        txFrameBatLevel.dataByte2 = ascii[2];
+        txFrameBatLevel.dataByte3 = 0x0;
+        txFrameBatLevel.dataByte4 = 0x0;
+        txFrameBatLevel.dataByte5 = 0x0;
+        txFrameBatLevel.dataByte6 = 0x0;
+        txFrameBatLevel.dataByte7 = 0x0;
 
         /* Send data through Tx Message Buffer. */
         txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
-        txXfer.frame = &txFrame;
+        txXfer.frame = &txFrameBatLevel;
         (void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
-     }
+    }
+
 }
 
-
-void vTaskRx5ms(void * pvParameters)
+void vTaskRxFreqTx(void * pvParameters)
 {
     TickType_t xLastWakeTime;
-    const TickType_t xPeriod = pdMS_TO_TICKS(5);
+    const TickType_t xPeriod = pdMS_TO_TICKS(500);
     xLastWakeTime = xTaskGetTickCount();
 
      /* Enter the loop that defines the task behavior. */
@@ -268,11 +284,24 @@ void vTaskRx5ms(void * pvParameters)
                      rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
                      rxFrame.dataByte6, rxFrame.dataByte7);
 
+             if(rxFrame.id == MSGRxFreqBat){
+            	 	 if(rxFrame.dataByte0 == 1){
+            	 		 g_period_ms = 50;
+            	 	 }
+            	 	 else if(rxFrame.dataByte0 == 2){
+            	 		 g_period_ms = 100;
+            	 	 }
+            	 	 else{
+            	 		 g_period_ms = 1000;
+            	 	 }
+             }
              rxComplete = pdFALSE;
          }
 
      }
 }
+
+
 
 
 
@@ -297,8 +326,12 @@ int main(void)
         PRINTF("FAIL to create vTaskTxAdc");
     }
 
-    if(xTaskCreate(vTaskRx5ms,"RxFrame5m",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
-        PRINTF("FAIL to create RxFrame5m");
+    if(xTaskCreate(vTaskRxFreqTx,"vTaskRxFreqTx",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
+        PRINTF("FAIL to create vTaskRxFreqTx");
+    }
+
+    if(xTaskCreate(vTaskTxKeepAlive,"TxKeepAlive",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-1),NULL) != pdPASS){
+        PRINTF("FAIL to create vTaskTxKeepAlive");
     }
 
     /* Start the scheduler. */
