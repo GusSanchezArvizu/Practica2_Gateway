@@ -32,7 +32,8 @@ source/MK64F12_Project_can_example.o source/MK64F12_Project_can_example.d: \
  D:\kcdia\Documents\Redes_ws\p2\Node\freertos\freertos_kernel\include/mpu_wrappers.h \
  D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_flexcan.h \
  D:\kcdia\Documents\Redes_ws\p2\Node\freertos\freertos_kernel\include/task.h \
- D:\kcdia\Documents\Redes_ws\p2\Node\freertos\freertos_kernel\include/list.h
+ D:\kcdia\Documents\Redes_ws\p2\Node\freertos\freertos_kernel\include/list.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_adc16.h
 
 D:\kcdia\Documents\Redes_ws\p2\Node\board/board.h:
 
@@ -99,3 +100,5 @@ D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_flexcan.h:
 D:\kcdia\Documents\Redes_ws\p2\Node\freertos\freertos_kernel\include/task.h:
 
 D:\kcdia\Documents\Redes_ws\p2\Node\freertos\freertos_kernel\include/list.h:
+
+D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_adc16.h:

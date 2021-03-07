@@ -1,5 +1,8 @@
-MK64F12_Project_can_example.c:89:13:flexcan_callback	24	static
-MK64F12_Project_can_example.c:115:6:CAN_Init	40	static
-MK64F12_Project_can_example.c:166:6:vTaskTx10ms	24	static
-MK64F12_Project_can_example.c:202:6:vTaskRx5ms	72	static
-MK64F12_Project_can_example.c:232:5:main	16	static
+fsl_adc16.h:367:20:ADC16_EnableHardwareTrigger	16	static
+fsl_adc16.h:491:24:ADC16_GetChannelConversionValue	16	static
+MK64F12_Project_can_example.c:92:10:get_adc_value	16	static
+MK64F12_Project_can_example.c:121:13:flexcan_callback	24	static
+MK64F12_Project_can_example.c:147:6:CAN_Init	40	static
+MK64F12_Project_can_example.c:198:6:vTaskTx10ms	32	static
+MK64F12_Project_can_example.c:250:6:vTaskRx5ms	72	static
+MK64F12_Project_can_example.c:280:5:main	16	static

@@ -42,6 +42,7 @@
 #include "fsl_flexcan.h"
 #include "task.h"
 #include "FreeRTOS.h"
+#include "fsl_adc16.h"
 
 
 /*******************************************************************************
@@ -53,8 +54,14 @@
 #define RX_MESSAGE_BUFFER_NUM  (9)
 #define TX_MESSAGE_BUFFER_NUM  (8)
 #define DLC                    (8)
-#define MSG1TxID               (0x124)
+#define MSGTxBatID             (0x25)
+#define MSGTxKeepAliveID       (0x100)
 #define MSG1RxID               (0x123)
+#define DEMO_ADC16_BASE          ADC0
+#define DEMO_ADC16_CHANNEL_GROUP 0U
+#define DEMO_ADC16_USER_CHANNEL  12U
+#define MAX_ADC_VALUE 4095U
+#define MAX_PERCENTAGE 100U
 
 /* The CAN clock prescaler = CAN source clock/(baud rate * quantum), and the prescaler must be an integer.
    The quantum default value is set to 10=(3+2+1)+4, because for most platforms the CAN clock frequency is
@@ -78,24 +85,51 @@ flexcan_handle_t flexcanHandle;
 flexcan_mb_transfer_t txXfer, rxXfer;
 flexcan_frame_t txFrame, rxFrame;
 uint8_t RxMBID;
+uint8_t g_period_ms = 1000;
 
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
+uint16_t get_adc_value() {
+    /* Using ADC polling example code */
+    static int adc_init = 0;
+    static adc16_config_t adc16ConfigStruct;
+    static adc16_channel_config_t adc16ChannelConfigStruct;
+
+    if (adc_init == 0) {
+         ADC16_GetDefaultConfig(&adc16ConfigStruct);
+         ADC16_Init(DEMO_ADC16_BASE, &adc16ConfigStruct);
+         ADC16_EnableHardwareTrigger(DEMO_ADC16_BASE, false); /* Make sure the software trigger is used. */
+        adc16ChannelConfigStruct.channelNumber                        = DEMO_ADC16_USER_CHANNEL;
+        adc16ChannelConfigStruct.enableInterruptOnConversionCompleted = false;
+
+        adc_init = 1;
+    }
+
+    ADC16_SetChannelConfig(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP, &adc16ChannelConfigStruct);
+    while (0U == (kADC16_ChannelConversionDoneFlag &
+                  ADC16_GetChannelStatusFlags(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP)))
+    {
+    }
+    uint16_t adc_value = ADC16_GetChannelConversionValue(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP);
+    PRINTF("ADC Value: %d\r\n", adc_value);
+    return adc_value;
+}
+
 /*!
  * @brief FlexCAN Call Back function
  */
 static void flexcan_callback(CAN_Type *base, flexcan_handle_t *handle, status_t status, uint32_t result, void *userData)
 {
-	switch (status)
+    switch (status)
     {
         /* Process FlexCAN Rx event. */
         case kStatus_FLEXCAN_RxIdle:
             if (RX_MESSAGE_BUFFER_NUM == result)
             {
-            	RxMBID = RX_MESSAGE_BUFFER_NUM;
-            	rxComplete = pdTRUE;
+                RxMBID = RX_MESSAGE_BUFFER_NUM;
+                rxComplete = pdTRUE;
             }
             break;
 
@@ -114,11 +148,11 @@ static void flexcan_callback(CAN_Type *base, flexcan_handle_t *handle, status_t 
 
 void CAN_Init(void){
 
-	flexcan_config_t flexcanConfig;
+    flexcan_config_t flexcanConfig;
     flexcan_rx_mb_config_t mbConfig;
 
 
-	/* Init FlexCAN module. */
+    /* Init FlexCAN module. */
     /*
      * flexcanConfig.clkSrc                 = kFLEXCAN_ClkSrc0;
      * flexcanConfig.baudRate               = 1000000U;
@@ -154,7 +188,7 @@ void CAN_Init(void){
     /* Prepare Tx Frame for sending. */
     txFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
     txFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
-    txFrame.id     = FLEXCAN_ID_STD(MSG1TxID);
+    txFrame.id     = FLEXCAN_ID_STD(MSGTxBatID);
     txFrame.length = (uint8_t)DLC;
 
 
@@ -163,64 +197,81 @@ void CAN_Init(void){
 }
 
 
-void vTaskTx10ms(void * pvParameters)
+void vTaskTxAdc(void * pvParameters)
 {
-	TickType_t xLastWakeTime;
-	const TickType_t xPeriod = pdMS_TO_TICKS(10);
-	xLastWakeTime = xTaskGetTickCount();
-	static uint8_t TxByte0 = 0;
-	static uint16_t TicksCounter = 0;
+    TickType_t xLastWakeTime;
+    const TickType_t xPeriod = pdMS_TO_TICKS(g_period_ms);
+    xLastWakeTime = xTaskGetTickCount();
+    static uint8_t TxByte0 = 0;
+    static uint16_t Ticksadc_percent = 0;
 
-	 /* Enter the loop that defines the task behavior. */
-	 for(;;){
-		 vTaskDelayUntil(&xLastWakeTime, xPeriod);
+     /* Enter the loop that defines the task behavior. */
+     for(;;){
+         xPeriod = pdMS_TO_TICKS(g_period_ms);
+         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
-		/*Increment a random value for demo*/
-		 TicksCounter++;
-		 if(TicksCounter > 300){
-			 if(TxByte0 < 100){
-				 TxByte0 += 5;
-			 }else{
-				 TxByte0 = 0;
-			 }
-			 TicksCounter = 0;
-		 }else{}
+        /*Increment a random value for demo*/
+         Ticksadc_percent++;
+         if(Ticksadc_percent > 300){
+             if(TxByte0 < 100){
+                 TxByte0 += 5;
+             }else{
+                 TxByte0 = 0;
+             }
+             Ticksadc_percent = 0;
+         }else{}
 
-		 /* Perform the periodic actions here. */
-		 txFrame.dataByte0 = TxByte0; txFrame.dataByte1 = 0x019; txFrame.dataByte2 = 0x02;
-		 txFrame.dataByte3 = 0x04; txFrame.dataByte4 = 0x04; txFrame.dataByte5 = 0x05;
-		 txFrame.dataByte6 = 0x06; txFrame.dataByte7 = 0x07;
+         /* Perform the periodic actions here. */
+         // txFrame.dataByte0 = TxByte0; txFrame.dataByte1 = 0x019; txFrame.dataByte2 = 0x02;
+         // txFrame.dataByte3 = 0x04; txFrame.dataByte4 = 0x04; txFrame.dataByte5 = 0x05;
+         // txFrame.dataByte6 = 0x06; txFrame.dataByte7 = 0x07;
+        uint16_t adc_value = get_adc_value();
+        uint8_t adc_percent = adc_value/MAX_ADC_VALUE;
 
-		/* Send data through Tx Message Buffer. */
-		txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
-		txXfer.frame = &txFrame;
-		(void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
-	 }
+        uint8_t ascii[3];
+        ascii[0] = (adc_percent%10) + 0x30;
+        ascii[1] = ((uint16_t)adc_percent/10)%10 + 0x30;
+        ascii[2] = ((uint16_t)adc_percent/100)%10 + 0x30;
+
+        txFrame.dataByte0 = ascii[0];
+        txFrame.dataByte1 = ascii[1];
+        txFrame.dataByte2 = ascii[2];
+        txFrame.dataByte3 = 0x0;
+        txFrame.dataByte4 = 0x0;
+        txFrame.dataByte5 = 0x0;
+        txFrame.dataByte6 = 0x0;
+        txFrame.dataByte7 = 0x0;
+
+        /* Send data through Tx Message Buffer. */
+        txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
+        txXfer.frame = &txFrame;
+        (void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
+     }
 }
 
 
 void vTaskRx5ms(void * pvParameters)
 {
-	TickType_t xLastWakeTime;
-	const TickType_t xPeriod = pdMS_TO_TICKS(5);
-	xLastWakeTime = xTaskGetTickCount();
+    TickType_t xLastWakeTime;
+    const TickType_t xPeriod = pdMS_TO_TICKS(5);
+    xLastWakeTime = xTaskGetTickCount();
 
-	 /* Enter the loop that defines the task behavior. */
-	 for(;;){
-		 vTaskDelayUntil(&xLastWakeTime, xPeriod);
+     /* Enter the loop that defines the task behavior. */
+     for(;;){
+         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
-		 /* Perform the periodic actions here. */
-		 (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
-		 if(rxComplete == pdTRUE){
-			 PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
-					 RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
-					 rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
-					 rxFrame.dataByte6, rxFrame.dataByte7);
+         /* Perform the periodic actions here. */
+         (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
+         if(rxComplete == pdTRUE){
+             PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
+                     RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
+                     rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
+                     rxFrame.dataByte6, rxFrame.dataByte7);
 
-			 rxComplete = pdFALSE;
-		 }
+             rxComplete = pdFALSE;
+         }
 
-	 }
+     }
 }
 
 
@@ -232,23 +283,23 @@ void vTaskRx5ms(void * pvParameters)
 int main(void)
 {
 
-	/* Initialize board hardware. */
+    /* Initialize board hardware. */
 
 
-	BOARD_InitBootPins();
+    BOARD_InitBootPins();
     BOARD_InitBootClocks();
     BOARD_InitBootPeripherals();
     BOARD_InitDebugConsole();
 
     CAN_Init();
 
-    if(xTaskCreate(vTaskTx10ms,"TxFrame10ms",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-1),NULL) != pdPASS){
-    	PRINTF("FAIL to create vTaskTx10ms");
+    if(xTaskCreate(vTaskTxAdc,"TxFrame10ms",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-1),NULL) != pdPASS){
+        PRINTF("FAIL to create vTaskTxAdc");
     }
 
     if(xTaskCreate(vTaskRx5ms,"RxFrame5m",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
-		PRINTF("FAIL to create RxFrame5m");
-	}
+        PRINTF("FAIL to create RxFrame5m");
+    }
 
     /* Start the scheduler. */
      vTaskStartScheduler();
