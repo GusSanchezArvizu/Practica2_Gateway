@@ -112,7 +112,7 @@ uint16_t get_adc_value() {
     {
     }
     uint16_t adc_value = ADC16_GetChannelConversionValue(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP);
-    PRINTF("ADC Value: %d\r\n", adc_value);
+    // PRINTF("ADC Value: %d\r\n", adc_value);
     return adc_value;
 }
 /*!
@@ -198,13 +198,14 @@ void CAN_Init(void){
 void vTaskTx10ms(void * pvParameters)
 {
     TickType_t xLastWakeTime;
-    const TickType_t xPeriod = pdMS_TO_TICKS(g_period_ms);
+    TickType_t xPeriod = pdMS_TO_TICKS(g_period_ms);
     xLastWakeTime = xTaskGetTickCount();
     static uint8_t TxByte0 = 0;
     static uint16_t TicksCounter = 0;
 
     /* Enter the loop that defines the task behavior. */
     for(;;){
+    	xPeriod = pdMS_TO_TICKS(g_period_ms);
         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
         /* Perform the periodic actions here. */
@@ -249,10 +250,31 @@ void vTaskRx5ms(void * pvParameters)
         /* Perform the periodic actions here. */
         (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
         if(rxComplete == pdTRUE){
-            PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
-                    RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
-                    rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
-                    rxFrame.dataByte6, rxFrame.dataByte7);
+            // PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
+            //         RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
+            //         rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
+            //         rxFrame.dataByte6, rxFrame.dataByte7);
+
+
+            
+            if (rxFrame.dataByte0 == 1) {
+                if (g_period_ms != 1000) {
+                	PRINTF("New period is %d\n", rxFrame.dataByte0);
+                }
+                g_period_ms = 1000;
+            }
+            else if (rxFrame.dataByte0 == 2) {
+                if (g_period_ms != 100) {
+                	PRINTF("New period is %d\n", rxFrame.dataByte0);
+                }
+                g_period_ms = 100;
+            }
+            else {
+                if (g_period_ms != 50) {
+                	PRINTF("New period is %d\n", rxFrame.dataByte0);
+                }
+                g_period_ms = 50;
+            }
 
             rxComplete = pdFALSE;
         }
@@ -292,11 +314,3 @@ int main(void)
 
     while (pdTRUE){}
 }
-
-
-
-
-
-
-
-
