@@ -42,6 +42,7 @@
 #include "fsl_flexcan.h"
 #include "task.h"
 #include "FreeRTOS.h"
+#include "fsl_adc16.h"
 
 
 /*******************************************************************************
@@ -55,6 +56,11 @@
 #define DLC                    (8)
 #define BatLvlTxID             (0x55)
 #define FreqRptRxID            (0x25)
+#define DEMO_ADC16_BASE          ADC0
+#define DEMO_ADC16_CHANNEL_GROUP 0U
+#define DEMO_ADC16_USER_CHANNEL  12U
+#define MAX_ADC_VALUE 4095U
+#define MAX_PERCENTAGE 100U
 
 /* The CAN clock prescaler = CAN source clock/(baud rate * quantum), and the prescaler must be an integer.
    The quantum default value is set to 10=(3+2+1)+4, because for most platforms the CAN clock frequency is
@@ -75,14 +81,40 @@
 volatile bool txComplete = pdFALSE;
 volatile bool rxComplete = pdFALSE;
 flexcan_handle_t flexcanHandle;
-flexcan_mb_transfer_t txBatLvl, rxXfer;
-flexcan_frame_t txFrame, rxFrame;
+flexcan_mb_transfer_t txBatLvlMb, rxXfer;
+flexcan_frame_t txBatLvlFrame, rxFrame;
 uint8_t RxMBID;
+uint16_t g_period_ms = 0;
 
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
+uint16_t get_adc_value() {
+	/* Using ADC polling example code */
+    static int adc_init = 0;
+    static adc16_config_t adc16ConfigStruct;
+    static adc16_channel_config_t adc16ChannelConfigStruct;
+
+    if (adc_init == 0) {
+    	 ADC16_GetDefaultConfig(&adc16ConfigStruct);
+    	 ADC16_Init(DEMO_ADC16_BASE, &adc16ConfigStruct);
+    	 ADC16_EnableHardwareTrigger(DEMO_ADC16_BASE, false); /* Make sure the software trigger is used. */
+		adc16ChannelConfigStruct.channelNumber                        = DEMO_ADC16_USER_CHANNEL;
+		adc16ChannelConfigStruct.enableInterruptOnConversionCompleted = false;
+
+    	adc_init = 1;
+    }
+
+    ADC16_SetChannelConfig(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP, &adc16ChannelConfigStruct);
+    while (0U == (kADC16_ChannelConversionDoneFlag &
+                  ADC16_GetChannelStatusFlags(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP)))
+    {
+    }
+    uint16_t adc_value = ADC16_GetChannelConversionValue(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP);
+    PRINTF("ADC Value: %d\r\n", adc_value);
+    return adc_value;
+}
 /*!
  * @brief FlexCAN Call Back function
  */
@@ -152,10 +184,10 @@ void CAN_Init(void){
     /* Setup Tx Message Buffer. */
     FLEXCAN_SetTxMbConfig(EXAMPLE_CAN, TX_MESSAGE_BUFFER_NUM, true);
     /* Prepare Tx Frame for sending. */
-    txFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
-    txFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
-    txFrame.id     = FLEXCAN_ID_STD(BatLvlTxID);
-    txFrame.length = (uint8_t)DLC;
+    txBatLvlFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
+    txBatLvlFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
+    txBatLvlFrame.id     = FLEXCAN_ID_STD(BatLvlTxID);
+    txBatLvlFrame.length = (uint8_t)DLC;
 
 
     /* Create FlexCAN handle structure and set call back function. */
@@ -166,7 +198,7 @@ void CAN_Init(void){
 void vTaskTxBatLvl(void * pvParameters)
 {
 	TickType_t xLastWakeTime;
-	const TickType_t xPeriod = pdMS_TO_TICKS(10);
+    TickType_t xPeriod = pdMS_TO_TICKS(10);
 	xLastWakeTime = xTaskGetTickCount();
 	static uint8_t TxByte0 = 0;
 	static uint16_t TicksCounter = 0;
@@ -177,9 +209,9 @@ void vTaskTxBatLvl(void * pvParameters)
 			xPeriod = pdMS_TO_TICKS(g_period_ms);
 			vTaskDelayUntil(&xLastWakeTime, xPeriod);
 	         /* Perform the periodic actions here. */
-	         // txFrame.dataByte0 = TxByte0; txFrame.dataByte1 = 0x019; txFrame.dataByte2 = 0x02;
-	         // txFrame.dataByte3 = 0x04; txFrame.dataByte4 = 0x04; txFrame.dataByte5 = 0x05;
-	         // txFrame.dataByte6 = 0x06; txFrame.dataByte7 = 0x07;
+	         // txBatLvlFrame.dataByte0 = TxByte0; txBatLvlFrame.dataByte1 = 0x019; txBatLvlFrame.dataByte2 = 0x02;
+	         // txBatLvlFrame.dataByte3 = 0x04; txBatLvlFrame.dataByte4 = 0x04; txBatLvlFrame.dataByte5 = 0x05;
+	         // txBatLvlFrame.dataByte6 = 0x06; txBatLvlFrame.dataByte7 = 0x07;
 	        uint16_t adc_value = get_adc_value();
 	        uint8_t adc_percent = adc_value/MAX_ADC_VALUE;
 
@@ -188,19 +220,19 @@ void vTaskTxBatLvl(void * pvParameters)
 	        ascii[1] = ((uint16_t)adc_percent/10)%10 + 0x30;
 	        ascii[2] = ((uint16_t)adc_percent/100)%10 + 0x30;
 
-	        txFrameBatLevel.dataByte0 = ascii[0];
-	        txFrameBatLevel.dataByte1 = ascii[1];
-	        txFrameBatLevel.dataByte2 = ascii[2];
-	        txFrameBatLevel.dataByte3 = 0x0;
-	        txFrameBatLevel.dataByte4 = 0x0;
-	        txFrameBatLevel.dataByte5 = 0x0;
-	        txFrameBatLevel.dataByte6 = 0x0;
-	        txFrameBatLevel.dataByte7 = 0x0;
+	        txBatLvlFrame.dataByte0 = ascii[0];
+	        txBatLvlFrame.dataByte1 = ascii[1];
+	        txBatLvlFrame.dataByte2 = ascii[2];
+	        txBatLvlFrame.dataByte3 = 0x0;
+	        txBatLvlFrame.dataByte4 = 0x0;
+	        txBatLvlFrame.dataByte5 = 0x0;
+	        txBatLvlFrame.dataByte6 = 0x0;
+	        txBatLvlFrame.dataByte7 = 0x0;
 
 	        /* Send data through Tx Message Buffer. */
-	        txBatLvl.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
-	        txBatLvl.frame = &txFrameBatLevel;
-	        (void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txBatLvl);
+	        txBatLvlMb.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
+	        txBatLvlMb.frame = &txBatLvlFrame;
+	        (void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txBatLvlMb);
 	    }
 }
 
