@@ -55,6 +55,7 @@
 #define TX_MESSAGE_BUFFER_NUM  (8)
 #define DLC                    (8)
 #define BatLvlTxID             (0x55)
+#define KeepAliveTxID          (0x100)
 #define FreqRptRxID            (0x25)
 
 /* The CAN clock prescaler = CAN source clock/(baud rate * quantum), and the prescaler must be an integer.
@@ -76,8 +77,8 @@
 volatile bool txComplete = pdFALSE;
 volatile bool rxComplete = pdFALSE;
 flexcan_handle_t flexcanHandle;
-flexcan_mb_transfer_t txBatLvlMb, rxXfer;
-flexcan_frame_t txBatLvlFrame, rxFrame;
+flexcan_mb_transfer_t txBatLvlMb, rxXfer, txKeepAliveMb;
+flexcan_frame_t txBatLvlFrame, rxFrame, txKeepAliveFrame;
 uint8_t RxMBID;
 uint16_t g_period_ms = 1000;
 #define DEMO_ADC16_BASE          ADC0
@@ -189,6 +190,10 @@ void CAN_Init(void){
     txBatLvlFrame.id     = FLEXCAN_ID_STD(BatLvlTxID);
     txBatLvlFrame.length = (uint8_t)DLC;
 
+    txKeepAliveFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
+    txKeepAliveFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
+    txKeepAliveFrame.id     = FLEXCAN_ID_STD(KeepAliveTxID);
+    txKeepAliveFrame.length = (uint8_t)DLC;
 
     /* Create FlexCAN handle structure and set call back function. */
     FLEXCAN_TransferCreateHandle(EXAMPLE_CAN, &flexcanHandle, flexcan_callback, NULL);
@@ -208,10 +213,6 @@ void vTaskTx10ms(void * pvParameters)
     	xPeriod = pdMS_TO_TICKS(g_period_ms);
         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
-        /* Perform the periodic actions here. */
-        // txBatLvlFrame.dataByte0 = TxByte0; txBatLvlFrame.dataByte1 = 0x019; txBatLvlFrame.dataByte2 = 0x02;
-        // txBatLvlFrame.dataByte3 = 0x04; txBatLvlFrame.dataByte4 = 0x04; txBatLvlFrame.dataByte5 = 0x05;
-        // txBatLvlFrame.dataByte6 = 0x06; txBatLvlFrame.dataByte7 = 0x07;
         uint16_t adc_value = get_adc_value();
         uint8_t adc_percent = adc_value/MAX_ADC_VALUE;
 
@@ -236,11 +237,37 @@ void vTaskTx10ms(void * pvParameters)
     }
 }
 
+void vTaskTxKeepAlive(void * pvParameters)
+{
+    TickType_t xLastWakeTime;
+    static const TickType_t xPeriod = pdMS_TO_TICKS(1000);
+    xLastWakeTime = xTaskGetTickCount();
+
+    /* Enter the loop that defines the task behavior. */
+    for(;;){
+    	vTaskDelayUntil(&xLastWakeTime, xPeriod);
+
+    	PRINTF("Going to tx\n");
+
+        txKeepAliveFrame.dataByte0 = 0x1; 
+        txKeepAliveFrame.dataByte1 = 0x0;
+        txKeepAliveFrame.dataByte2 = 0x0;
+        txKeepAliveFrame.dataByte3 = 0x0;
+        txKeepAliveFrame.dataByte4 = 0x0;
+        txKeepAliveFrame.dataByte5 = 0x0;
+        txKeepAliveFrame.dataByte6 = 0x0;
+        txKeepAliveFrame.dataByte7 = 0x0;
+
+        txKeepAliveMb.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
+        txKeepAliveMb.frame = &txKeepAliveFrame;
+        (void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txKeepAliveMb);
+    }
+}
 
 void vTaskRx5ms(void * pvParameters)
 {
     TickType_t xLastWakeTime;
-    const TickType_t xPeriod = pdMS_TO_TICKS(5);
+    const TickType_t xPeriod = pdMS_TO_TICKS(1000);
     xLastWakeTime = xTaskGetTickCount();
 
     /* Enter the loop that defines the task behavior. */
@@ -250,12 +277,6 @@ void vTaskRx5ms(void * pvParameters)
         /* Perform the periodic actions here. */
         (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
         if(rxComplete == pdTRUE){
-            // PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
-            //         RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
-            //         rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
-            //         rxFrame.dataByte6, rxFrame.dataByte7);
-
-
             
             if (rxFrame.dataByte0 == 1) {
                 if (g_period_ms != 1000) {
@@ -307,6 +328,10 @@ int main(void)
 
     if(xTaskCreate(vTaskRx5ms,"RxFrame5m",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
         PRINTF("FAIL to create RxFrame5m");
+    }
+
+    if(xTaskCreate(vTaskTxKeepAlive,"vTaskTxKeepAlive",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-1),NULL) != pdPASS){
+        PRINTF("FAIL to create vTaskTxKeepAlive");
     }
 
     /* Start the scheduler. */
