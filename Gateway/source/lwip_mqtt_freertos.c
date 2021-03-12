@@ -38,7 +38,6 @@
 #include "fsl_phyksz8081.h"
 #include "fsl_enet_mdio.h"
 #include "fsl_flexcan.h"
-#include "fsl_adc16.h"
 
 /*******************************************************************************
  * Definitions
@@ -51,12 +50,6 @@
 #define DLC                    (8)
 #define MSG1TxID               (0x55)
 #define MSG1RxID               (0x25)
-
-#define DEMO_ADC16_BASE          ADC0
-#define DEMO_ADC16_CHANNEL_GROUP 0U
-#define DEMO_ADC16_USER_CHANNEL  12U
-#define MAX_ADC_VALUE 4095U
-#define MAX_PERCENTAGE 100U
 
 /* MAC address configuration. */
 #define configMAC_ADDR                     \
@@ -118,6 +111,7 @@ flexcan_handle_t flexcanHandle;
 flexcan_mb_transfer_t txXfer, rxXfer;
 flexcan_frame_t txFrame, rxFrame;
 uint8_t RxMBID;
+uint8_t battery_level[3] = {0, 0, 0};
 
 static mdio_handle_t mdioHandle = {.ops = &EXAMPLE_MDIO_OPS};
 static phy_handle_t phyHandle   = {.phyAddr = EXAMPLE_PHY_ADDRESS, .mdioHandle = &mdioHandle, .ops = &EXAMPLE_PHY_OPS};
@@ -152,34 +146,6 @@ static volatile bool connected = false;
 /*******************************************************************************
  * Code
  ******************************************************************************/
-
-uint16_t get_adc_value() {
-    /* Using ADC polling example code */
-    static int adc_init = 0;
-    static adc16_config_t adc16ConfigStruct;
-    static adc16_channel_config_t adc16ChannelConfigStruct;
-
-    if (adc_init == 0) {
-         ADC16_GetDefaultConfig(&adc16ConfigStruct);
-         ADC16_Init(DEMO_ADC16_BASE, &adc16ConfigStruct);
-         ADC16_EnableHardwareTrigger(DEMO_ADC16_BASE, false); /* Make sure the software trigger is used. */
-        adc16ChannelConfigStruct.channelNumber                        = DEMO_ADC16_USER_CHANNEL;
-        adc16ChannelConfigStruct.enableInterruptOnConversionCompleted = false;
-
-        adc_init = 1;
-    }
-
-    ADC16_SetChannelConfig(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP, &adc16ChannelConfigStruct);
-    while (0U == (kADC16_ChannelConversionDoneFlag &
-                  ADC16_GetChannelStatusFlags(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP)))
-    {
-    }
-    uint16_t adc_value = ADC16_GetChannelConversionValue(DEMO_ADC16_BASE, DEMO_ADC16_CHANNEL_GROUP);
-    PRINTF("ADC Value: %d\r\n", adc_value);
-    return adc_value;
-}
-
-
 /*!
  * @brief Called when subscription request finishes.
  */
@@ -346,18 +312,13 @@ static void publish_message(void *ctx)
     static const char *topic = "Omar_SP/feeds/battery-level";
     char *message = "0\t1\t2\t3\t4\t5\t";
     char ascii[3];
-    static uint8_t counter = 0;
 
-    if (counter < 100) {
-        counter++;
-    }
-    else {
-        counter = 0;
-    }
-
-    ascii[0] = (counter%10) + 0x30;
-    ascii[1] = ((uint16_t)counter/10)%10 + 0x30;
-    ascii[2] = ((uint16_t)counter/100)%10 + 0x30;
+    // ascii[0] = (counter%10) + 0x30;
+    // ascii[1] = ((uint16_t)counter/10)%10 + 0x30;
+    // ascii[2] = ((uint16_t)counter/100)%10 + 0x30;
+    ascii[0] = battery_level[0];
+    ascii[1] = battery_level[1];
+    ascii[2] = battery_level[2];
 
     // message = ascii;
 
@@ -547,58 +508,62 @@ void CAN_Init(void){
 
 void vTaskTx10ms(void * pvParameters)
 {
-	TickType_t xLastWakeTime;
-	const TickType_t xPeriod = pdMS_TO_TICKS(10);
-	xLastWakeTime = xTaskGetTickCount();
-	static uint8_t TxByte0 = 0;
-	static uint16_t TicksCounter = 0;
+    TickType_t xLastWakeTime;
+    const TickType_t xPeriod = pdMS_TO_TICKS(10);
+    xLastWakeTime = xTaskGetTickCount();
+    static uint8_t TxByte0 = 0;
+    static uint16_t TicksCounter = 0;
 
-	 /* Enter the loop that defines the task behavior. */
-	 for(;;){
-		 vTaskDelayUntil(&xLastWakeTime, xPeriod);
+     /* Enter the loop that defines the task behavior. */
+     for(;;){
+         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
 
-		 /* Perform the periodic actions here. */
-		 txFrame.dataByte0 = 0x2;
-		 txFrame.dataByte1 = 0x0;
-		 txFrame.dataByte2 = 0x0;
-		 txFrame.dataByte3 = 0x0;
-		 txFrame.dataByte4 = 0x0;
-		 txFrame.dataByte5 = 0x0;
-		 txFrame.dataByte6 = 0x0;
-		 txFrame.dataByte7 = 0x0;
+         /* Perform the periodic actions here. */
+         txFrame.dataByte0 = 0x2;
+         txFrame.dataByte1 = 0x0;
+         txFrame.dataByte2 = 0x0;
+         txFrame.dataByte3 = 0x0;
+         txFrame.dataByte4 = 0x0;
+         txFrame.dataByte5 = 0x0;
+         txFrame.dataByte6 = 0x0;
+         txFrame.dataByte7 = 0x0;
 
-		/* Send data through Tx Message Buffer. */
-		txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
-		txXfer.frame = &txFrame;
-		(void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
-	 }
+        /* Send data through Tx Message Buffer. */
+        txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
+        txXfer.frame = &txFrame;
+        (void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
+     }
 }
 
 
 void vTaskRx5ms(void * pvParameters)
 {
-	TickType_t xLastWakeTime;
-	const TickType_t xPeriod = pdMS_TO_TICKS(5);
-	xLastWakeTime = xTaskGetTickCount();
+    TickType_t xLastWakeTime;
+    const TickType_t xPeriod = pdMS_TO_TICKS(5);
+    xLastWakeTime = xTaskGetTickCount();
 
-	 /* Enter the loop that defines the task behavior. */
-	 for(;;){
-		 vTaskDelayUntil(&xLastWakeTime, xPeriod);
+     /* Enter the loop that defines the task behavior. */
+     for(;;){
+         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
-		 /* Perform the periodic actions here. */
-		 (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
-		 if(rxComplete == pdTRUE)
-		 {
-			 PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
-					 RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
-					 rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
-					 rxFrame.dataByte6, rxFrame.dataByte7);
+         /* Perform the periodic actions here. */
+         (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
+         if(rxComplete == pdTRUE)
+         {
+             PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
+                     RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
+                     rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
+                     rxFrame.dataByte6, rxFrame.dataByte7);
 
-			 rxComplete = pdFALSE;
-		 }
+             battery_level[0] = rxFrame.dataByte0;
+             battery_level[1] = rxFrame.dataByte1;
+             battery_level[2] = rxFrame.dataByte2;
 
-	 }
+             rxComplete = pdFALSE;
+         }
+
+     }
 }
 
 /*!
@@ -663,12 +628,12 @@ int main(void)
         LWIP_ASSERT("main(): Task creation failed.", 0);
     }
     if(xTaskCreate(vTaskTx10ms,"TxFrame10ms",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-1),NULL) != pdPASS){
-    	PRINTF("FAIL to create vTaskTx10ms");
+        PRINTF("FAIL to create vTaskTx10ms");
     }
 
     if(xTaskCreate(vTaskRx5ms,"RxFrame5m",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
-		PRINTF("FAIL to create RxFrame5m");
-	}
+        PRINTF("FAIL to create RxFrame5m");
+    }
 
     vTaskStartScheduler();
 
