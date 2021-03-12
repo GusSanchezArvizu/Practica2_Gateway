@@ -126,7 +126,7 @@ static char client_id[40];
 static const struct mqtt_connect_client_info_t mqtt_client_info = {
     .client_id   = (const char *)&client_id[0],
     .client_user = "Omar_SP",
-    .client_pass = "aio_Xtzg2636cg1uVzwEKgnej1gD8fzy",
+    .client_pass = "aio_dqfR96uPtX5mKz3TYf2YHjPNJGsV",
     .keep_alive  = 100,
     .will_topic  = NULL,
     .will_msg    = NULL,
@@ -310,8 +310,8 @@ static void mqtt_message_published_cb(void *arg, err_t err)
 static void publish_message(void *ctx)
 {
     static const char *topic = "Omar_SP/feeds/battery-level";
-    char *message = "0\t1\t2\t3\t4\t5\t";
-    char ascii[3];
+    char *message;
+    char ascii[4];
 
     // ascii[0] = (counter%10) + 0x30;
     // ascii[1] = ((uint16_t)counter/10)%10 + 0x30;
@@ -319,8 +319,9 @@ static void publish_message(void *ctx)
     ascii[0] = battery_level[0];
     ascii[1] = battery_level[1];
     ascii[2] = battery_level[2];
+    ascii[3] = '\0';
 
-    // message = ascii;
+     message = ascii;
 
     LWIP_UNUSED_ARG(ctx);
 
@@ -406,7 +407,7 @@ static void app_thread(void *arg)
             i++;
         }
         //Frecuencia de transmision de publicacion de mensajes
-        sys_msleep(1000U);
+        sys_msleep(2000U);
     }
 
     vTaskDelete(NULL);
@@ -520,7 +521,7 @@ void vTaskTx10ms(void * pvParameters)
 
 
          /* Perform the periodic actions here. */
-         txFrame.dataByte0 = 0x2;
+         txFrame.dataByte0 = 0x1;
          txFrame.dataByte1 = 0x0;
          txFrame.dataByte2 = 0x0;
          txFrame.dataByte3 = 0x0;
@@ -551,10 +552,10 @@ void vTaskRx5ms(void * pvParameters)
          (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
          if(rxComplete == pdTRUE)
          {
-             PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
-                     RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
-                     rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
-                     rxFrame.dataByte6, rxFrame.dataByte7);
+//             PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
+//                     RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
+//                     rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
+//                     rxFrame.dataByte6, rxFrame.dataByte7);
 
              battery_level[0] = rxFrame.dataByte0;
              battery_level[1] = rxFrame.dataByte1;
