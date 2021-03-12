@@ -1,3 +1,33 @@
+/*
+ * Copyright 2016-2021 NXP
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * o Redistributions of source code must retain the above copyright notice, this list
+ *   of conditions and the following disclaimer.
+ *
+ * o Redistributions in binary form must reproduce the above copyright notice, this
+ *   list of conditions and the following disclaimer in the documentation and/or
+ *   other materials provided with the distribution.
+ *
+ * o Neither the name of NXP Semiconductor, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived from this
+ *   software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 /**
  * @file    MK64F12_Project_can_example.c
  * @brief   Application entry point.
@@ -21,13 +51,12 @@
 #define EXAMPLE_CAN            CAN0
 #define EXAMPLE_CAN_CLK_SOURCE (kFLEXCAN_ClkSrc1)
 #define EXAMPLE_CAN_CLK_FREQ   CLOCK_GetFreq(kCLOCK_BusClk)
-#define RX_MESSAGE_BUFFER_NUM  (1)
-#define TX_MESSAGE_BUFFER_NUM  (3)
+#define RX_MESSAGE_BUFFER_NUM  (9)
+#define TX_MESSAGE_BUFFER_NUM  (8)
 #define DLC                    (8)
 #define BatLvlTxID             (0x55)
 #define KeepAliveTxID          (0x100)
 #define FreqRptRxID            (0x25)
-#define EnableRxID             (0x80)
 
 /* The CAN clock prescaler = CAN source clock/(baud rate * quantum), and the prescaler must be an integer.
    The quantum default value is set to 10=(3+2+1)+4, because for most platforms the CAN clock frequency is
@@ -48,11 +77,10 @@
 volatile bool txComplete = pdFALSE;
 volatile bool rxComplete = pdFALSE;
 flexcan_handle_t flexcanHandle;
-flexcan_mb_transfer_t txBatLvlMb, rxFrecRpt, txKeepAliveMb, rxEnable;
-flexcan_frame_t txBatLvlFrame, rxFrecRptFrame, txKeepAliveFrame, rxEnableFrame;
+flexcan_mb_transfer_t txBatLvlMb, rxXfer, txKeepAliveMb;
+flexcan_frame_t txBatLvlFrame, rxFrame, txKeepAliveFrame;
 uint8_t RxMBID;
 uint16_t g_period_ms = 1000;
-uint8_t enable_node = 1;
 #define DEMO_ADC16_BASE          ADC0
 #define DEMO_ADC16_CHANNEL_GROUP 0U
 #define DEMO_ADC16_USER_CHANNEL  12U
@@ -121,7 +149,6 @@ void CAN_Init(void){
 
     flexcan_config_t flexcanConfig;
     flexcan_rx_mb_config_t mbConfig;
-    flexcan_rx_mb_config_t mbConfigEnable;
 
 
     /* Init FlexCAN module. */
@@ -152,16 +179,8 @@ void CAN_Init(void){
     mbConfig.id     = FLEXCAN_ID_STD(FreqRptRxID);
     FLEXCAN_SetRxMbConfig(EXAMPLE_CAN, RX_MESSAGE_BUFFER_NUM, &mbConfig, true);
     /* Start receive data through Rx Message Buffer. */
-    rxFrecRpt.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
-    rxFrecRpt.frame = &rxFrecRptFrame;
-
-    mbConfigEnable.format = kFLEXCAN_FrameFormatStandard;
-    mbConfigEnable.type   = kFLEXCAN_FrameTypeData;
-    mbConfigEnable.id     = FLEXCAN_ID_STD(EnableRxID);
-    FLEXCAN_SetRxMbConfig(EXAMPLE_CAN, RX_MESSAGE_BUFFER_NUM, &mbConfigEnable, true);
-    /* Start receive data through Rx Message Buffer. */
-    rxEnable.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
-    rxEnable.frame = &rxEnableFrame;
+    rxXfer.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
+    rxXfer.frame = &rxFrame;
 
     /* Setup Tx Message Buffer. */
     FLEXCAN_SetTxMbConfig(EXAMPLE_CAN, TX_MESSAGE_BUFFER_NUM, true);
@@ -181,15 +200,17 @@ void CAN_Init(void){
 }
 
 
-void vTaskTxBatLvl(void * pvParameters)
+void vTaskTx10ms(void * pvParameters)
 {
     TickType_t xLastWakeTime;
     TickType_t xPeriod = pdMS_TO_TICKS(g_period_ms);
     xLastWakeTime = xTaskGetTickCount();
+    static uint8_t TxByte0 = 0;
+    static uint16_t TicksCounter = 0;
 
     /* Enter the loop that defines the task behavior. */
     for(;;){
-        xPeriod = pdMS_TO_TICKS(g_period_ms);
+    	xPeriod = pdMS_TO_TICKS(g_period_ms);
         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
         uint16_t adc_value = get_adc_value();
@@ -203,6 +224,11 @@ void vTaskTxBatLvl(void * pvParameters)
         txBatLvlFrame.dataByte0 = ascii[0];
         txBatLvlFrame.dataByte1 = ascii[1];
         txBatLvlFrame.dataByte2 = ascii[2];
+        txBatLvlFrame.dataByte3 = 0x0;
+        txBatLvlFrame.dataByte4 = 0x0;
+        txBatLvlFrame.dataByte5 = 0x0;
+        txBatLvlFrame.dataByte6 = 0x0;
+        txBatLvlFrame.dataByte7 = 0x0;
 
         /* Send data through Tx Message Buffer. */
         txBatLvlMb.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
@@ -219,13 +245,18 @@ void vTaskTxKeepAlive(void * pvParameters)
 
     /* Enter the loop that defines the task behavior. */
     for(;;){
-        vTaskDelayUntil(&xLastWakeTime, xPeriod);
+    	vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
-        PRINTF("Going to tx\n");
+    	PRINTF("Going to tx\n");
 
-        txKeepAliveFrame.dataByte0 = 0x1;
+        txKeepAliveFrame.dataByte0 = 0x1; 
         txKeepAliveFrame.dataByte1 = 0x0;
         txKeepAliveFrame.dataByte2 = 0x0;
+        txKeepAliveFrame.dataByte3 = 0x0;
+        txKeepAliveFrame.dataByte4 = 0x0;
+        txKeepAliveFrame.dataByte5 = 0x0;
+        txKeepAliveFrame.dataByte6 = 0x0;
+        txKeepAliveFrame.dataByte7 = 0x0;
 
         txKeepAliveMb.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
         txKeepAliveMb.frame = &txKeepAliveFrame;
@@ -233,7 +264,7 @@ void vTaskTxKeepAlive(void * pvParameters)
     }
 }
 
-void vTaskRxFrecRpt(void * pvParameters)
+void vTaskRx5ms(void * pvParameters)
 {
     TickType_t xLastWakeTime;
     const TickType_t xPeriod = pdMS_TO_TICKS(5);
@@ -244,60 +275,46 @@ void vTaskRxFrecRpt(void * pvParameters)
         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
         /* Perform the periodic actions here. */
-        (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxFrecRpt);
+        (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
         if(rxComplete == pdTRUE){
-
-            if (rxFrecRptFrame.dataByte0 == 1) {
+            
+            if (rxFrame.dataByte0 == 1) {
                 if (g_period_ms != 1000) {
-                    PRINTF("New period is %d\n", rxFrecRptFrame.dataByte0);
+                	PRINTF("New period is %d\n", rxFrame.dataByte0);
                 }
                 g_period_ms = 1000;
             }
-            else if (rxFrecRptFrame.dataByte0 == 2) {
+            else if (rxFrame.dataByte0 == 2) {
                 if (g_period_ms != 100) {
-                    PRINTF("New period is %d\n", rxFrecRptFrame.dataByte0);
+                	PRINTF("New period is %d\n", rxFrame.dataByte0);
                 }
                 g_period_ms = 100;
             }
             else {
                 if (g_period_ms != 50) {
-                    PRINTF("New period is %d\n", rxFrecRptFrame.dataByte0);
+                	PRINTF("New period is %d\n", rxFrame.dataByte0);
                 }
                 g_period_ms = 50;
             }
 
             rxComplete = pdFALSE;
         }
+
     }
 }
 
-void vTaskRxEnable(void * pvParameters)
-{
-    TickType_t xLastWakeTime;
-    const TickType_t xPeriod = pdMS_TO_TICKS(5);
-    xLastWakeTime = xTaskGetTickCount();
 
-    /* Enter the loop that defines the task behavior. */
-    for(;;){
-        vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
-        /* Perform the periodic actions here. */
-        (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxEnable);
-        if(rxComplete == pdTRUE){
-
-            enable_node = rxEnableFrame.dataByte0;
-
-            rxComplete = pdFALSE;
-        }
-    }
-}
 
 /*!
  * @brief Main function
  */
 int main(void)
 {
+
     /* Initialize board hardware. */
+
+
     BOARD_InitBootPins();
     BOARD_InitBootClocks();
     BOARD_InitBootPeripherals();
@@ -305,25 +322,16 @@ int main(void)
 
     CAN_Init();
 
-    if(xTaskCreate(vTaskTxBatLvl,"TxFrame10ms",(configMINIMAL_STACK_SIZE+100),
-                   NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS) {
+    if(xTaskCreate(vTaskTx10ms,"TxFrame10ms",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-1),NULL) != pdPASS){
         PRINTF("FAIL to create vTaskTx10ms");
     }
 
-    if(xTaskCreate(vTaskRxFrecRpt,"rxFrecRptFrame",(configMINIMAL_STACK_SIZE+100),
-                   NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS) {
+    if(xTaskCreate(vTaskRx5ms,"RxFrame5m",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
         PRINTF("FAIL to create RxFrame5m");
     }
 
-    if(xTaskCreate(vTaskTxKeepAlive,"vTaskTxKeepAlive",
-                   (configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),
-                   NULL) != pdPASS) {
+    if(xTaskCreate(vTaskTxKeepAlive,"vTaskTxKeepAlive",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-1),NULL) != pdPASS){
         PRINTF("FAIL to create vTaskTxKeepAlive");
-    }
-
-    if(xTaskCreate(vTaskRxEnable,"rxEnable",(configMINIMAL_STACK_SIZE+100),NULL,
-                   (configMAX_PRIORITIES-2),NULL) != pdPASS) {
-        PRINTF("FAIL to create RxEnable");
     }
 
     /* Start the scheduler. */
