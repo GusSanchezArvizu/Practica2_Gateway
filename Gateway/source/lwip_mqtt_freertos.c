@@ -49,8 +49,8 @@
 #define RX_MESSAGE_BUFFER_NUM  (9)
 #define TX_MESSAGE_BUFFER_NUM  (8)
 #define DLC                    (8)
-#define MSG1TxID               (0x123)
-#define MSG1RxID               (0x124)
+#define MSG1TxID               (0x55)
+#define MSG1RxID               (0x25)
 
 #define DEMO_ADC16_BASE          ADC0
 #define DEMO_ADC16_CHANNEL_GROUP 0U
@@ -545,6 +545,62 @@ void CAN_Init(void){
     FLEXCAN_TransferCreateHandle(EXAMPLE_CAN, &flexcanHandle, flexcan_callback, NULL);
 }
 
+void vTaskTx10ms(void * pvParameters)
+{
+	TickType_t xLastWakeTime;
+	const TickType_t xPeriod = pdMS_TO_TICKS(10);
+	xLastWakeTime = xTaskGetTickCount();
+	static uint8_t TxByte0 = 0;
+	static uint16_t TicksCounter = 0;
+
+	 /* Enter the loop that defines the task behavior. */
+	 for(;;){
+		 vTaskDelayUntil(&xLastWakeTime, xPeriod);
+
+
+		 /* Perform the periodic actions here. */
+		 txFrame.dataByte0 = 0x2;
+		 txFrame.dataByte1 = 0x0;
+		 txFrame.dataByte2 = 0x0;
+		 txFrame.dataByte3 = 0x0;
+		 txFrame.dataByte4 = 0x0;
+		 txFrame.dataByte5 = 0x0;
+		 txFrame.dataByte6 = 0x0;
+		 txFrame.dataByte7 = 0x0;
+
+		/* Send data through Tx Message Buffer. */
+		txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
+		txXfer.frame = &txFrame;
+		(void)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
+	 }
+}
+
+
+void vTaskRx5ms(void * pvParameters)
+{
+	TickType_t xLastWakeTime;
+	const TickType_t xPeriod = pdMS_TO_TICKS(5);
+	xLastWakeTime = xTaskGetTickCount();
+
+	 /* Enter the loop that defines the task behavior. */
+	 for(;;){
+		 vTaskDelayUntil(&xLastWakeTime, xPeriod);
+
+		 /* Perform the periodic actions here. */
+		 (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
+		 if(rxComplete == pdTRUE)
+		 {
+			 PRINTF("Message received from MB: %d, ID: 0x%x, data: %x,%x,%x,%x,%x,%x,%x,%x\n",
+					 RxMBID, (rxFrame.id>>CAN_ID_STD_SHIFT), rxFrame.dataByte0, rxFrame.dataByte1,
+					 rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
+					 rxFrame.dataByte6, rxFrame.dataByte7);
+
+			 rxComplete = pdFALSE;
+		 }
+
+	 }
+}
+
 /*!
  * @brief Main function
  */
@@ -567,7 +623,9 @@ int main(void)
     BOARD_InitBootPins();
     BOARD_InitBootClocks();
     BOARD_InitDebugConsole();
+
     CAN_Init();
+
     /* Disable SYSMPU. */
     base->CESR &= ~SYSMPU_CESR_VLD_MASK;
     generate_client_id();
@@ -604,6 +662,13 @@ int main(void)
     {
         LWIP_ASSERT("main(): Task creation failed.", 0);
     }
+    if(xTaskCreate(vTaskTx10ms,"TxFrame10ms",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-1),NULL) != pdPASS){
+    	PRINTF("FAIL to create vTaskTx10ms");
+    }
+
+    if(xTaskCreate(vTaskRx5ms,"RxFrame5m",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
+		PRINTF("FAIL to create RxFrame5m");
+	}
 
     vTaskStartScheduler();
 
