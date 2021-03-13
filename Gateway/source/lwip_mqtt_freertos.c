@@ -48,8 +48,10 @@
 #define RX_MESSAGE_BUFFER_NUM  (9)
 #define TX_MESSAGE_BUFFER_NUM  (8)
 #define DLC                    (8)
-#define MSG1TxID               (0x55)
+#define MSG1TxID               (0x80)
 #define MSG1RxID               (0x25)
+#define SubsTopic1             ("Omar_SP/feeds/actuator")
+#define SubsTopic2             ("Omar_SP/feeds/battery-level")
 
 /* MAC address configuration. */
 #define configMAC_ADDR                     \
@@ -113,6 +115,9 @@ flexcan_frame_t txFrame, rxFrame;
 uint8_t RxMBID;
 uint8_t battery_level[3] = {0, 0, 0};
 
+uint8_t g_led_value = 0;
+uint8_t g_current_topic = 0;
+
 static mdio_handle_t mdioHandle = {.ops = &EXAMPLE_MDIO_OPS};
 static phy_handle_t phyHandle   = {.phyAddr = EXAMPLE_PHY_ADDRESS, .mdioHandle = &mdioHandle, .ops = &EXAMPLE_PHY_OPS};
 
@@ -126,7 +131,7 @@ static char client_id[40];
 static const struct mqtt_connect_client_info_t mqtt_client_info = {
     .client_id   = (const char *)&client_id[0],
     .client_user = "Omar_SP",
-    .client_pass = "aio_dqfR96uPtX5mKz3TYf2YHjPNJGsV",
+    .client_pass = "aio_LhCD18j7MBQ5oaLIb05Wh1JWUG1M",
     .keep_alive  = 100,
     .will_topic  = NULL,
     .will_msg    = NULL,
@@ -171,6 +176,13 @@ static void mqtt_incoming_publish_cb(void *arg, const char *topic, u32_t tot_len
     LWIP_UNUSED_ARG(arg);
 
     PRINTF("Received %u bytes from the topic \"%s\": \"", tot_len, topic);
+    if(strcmp(topic, SubsTopic1) == 0){
+    	g_current_topic = 1;
+    }else if(strcmp(topic, SubsTopic2) == 0){
+    	g_current_topic = 2;
+    }else{
+    	g_current_topic = 0;
+    }
 }
 
 /*!
@@ -193,6 +205,14 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
             PRINTF("\\x%02x", data[i]);
         }
     }
+    if(g_current_topic == 1){
+    	g_led_value = data[0];
+    	if(data[1] == 'N'){
+    		g_led_value = 1;
+    	}else{
+    		g_led_value  = 0;
+    	}
+    }
 
     if (flags & MQTT_DATA_FLAG_LAST)
     {
@@ -205,7 +225,7 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
  */
 static void mqtt_subscribe_topics(mqtt_client_t *client)
 {
-    static const char *topics[] = {"Omar_SP/feeds/can-status", "Omar_SP/feeds/battery-level"};
+    static const char *topics[] = {SubsTopic1, SubsTopic2};
     int qos[]                   = {1, 1};
     err_t err;
     int i;
@@ -521,7 +541,7 @@ void vTaskTx10ms(void * pvParameters)
 
 
          /* Perform the periodic actions here. */
-         txFrame.dataByte0 = 0x1;
+         txFrame.dataByte0 = g_led_value;
          txFrame.dataByte1 = 0x0;
          txFrame.dataByte2 = 0x0;
          txFrame.dataByte3 = 0x0;
