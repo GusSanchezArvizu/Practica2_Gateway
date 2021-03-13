@@ -52,6 +52,7 @@
 #define MSG1RxID               (0x25)
 #define SubsTopic1             ("Omar_SP/feeds/actuator")
 #define SubsTopic2             ("Omar_SP/feeds/battery-level")
+#define SubsTopic3			   ("Omar_SP/feeds/can-status")
 
 /* MAC address configuration. */
 #define configMAC_ADDR                     \
@@ -117,6 +118,7 @@ uint8_t battery_level[3] = {0, 0, 0};
 
 uint8_t g_led_value = 0;
 uint8_t g_current_topic = 0;
+uint8_t g_dead_node = 1;
 
 static mdio_handle_t mdioHandle = {.ops = &EXAMPLE_MDIO_OPS};
 static phy_handle_t phyHandle   = {.phyAddr = EXAMPLE_PHY_ADDRESS, .mdioHandle = &mdioHandle, .ops = &EXAMPLE_PHY_OPS};
@@ -131,7 +133,7 @@ static char client_id[40];
 static const struct mqtt_connect_client_info_t mqtt_client_info = {
     .client_id   = (const char *)&client_id[0],
     .client_user = "Omar_SP",
-    .client_pass = "aio_LhCD18j7MBQ5oaLIb05Wh1JWUG1M",
+    .client_pass = "aio_npRl68CgKgMnwu4qwe5ReS6byhOC",
     .keep_alive  = 100,
     .will_topic  = NULL,
     .will_msg    = NULL,
@@ -225,8 +227,8 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
  */
 static void mqtt_subscribe_topics(mqtt_client_t *client)
 {
-    static const char *topics[] = {SubsTopic1, SubsTopic2};
-    int qos[]                   = {1, 1};
+    static const char *topics[] = {SubsTopic1, SubsTopic2, SubsTopic3};
+    int qos[]                   = {1, 1, 1};
     err_t err;
     int i;
 
@@ -330,24 +332,59 @@ static void mqtt_message_published_cb(void *arg, err_t err)
 static void publish_message(void *ctx)
 {
     static const char *topic = "Omar_SP/feeds/battery-level";
+    static const char *topic2 = SubsTopic3;
+    static uint8_t turn_to_send = 0;
+    static uint8_t previous_node_status = 0;
     char *message;
+    char message2[2];
     char ascii[4];
 
     // ascii[0] = (counter%10) + 0x30;
     // ascii[1] = ((uint16_t)counter/10)%10 + 0x30;
     // ascii[2] = ((uint16_t)counter/100)%10 + 0x30;
-    ascii[0] = battery_level[0];
-    ascii[1] = battery_level[1];
-    ascii[2] = battery_level[2];
-    ascii[3] = '\0';
+    if(turn_to_send == 0){
+    	turn_to_send = 1;
+    	ascii[0] = battery_level[0];
+		ascii[1] = battery_level[1];
+		ascii[2] = battery_level[2];
+		ascii[3] = '\0';
 
-     message = ascii;
+		 message = ascii;
 
-    LWIP_UNUSED_ARG(ctx);
+		LWIP_UNUSED_ARG(ctx);
 
-    PRINTF("Going to publish to the topic \"%s\"...\r\n", topic);
+		PRINTF("Going to publish to the topic \"%s\"...\r\n", topic);
 
-    mqtt_publish(mqtt_client, topic, message, strlen(message), 1, 0, mqtt_message_published_cb, (void *)topic);
+		mqtt_publish(mqtt_client, topic, message, strlen(message), 1, 0, mqtt_message_published_cb, (void *)topic);
+    }
+    else{
+    	turn_to_send = 0;
+        if(g_dead_node == 1){
+    //    	message2[0] = 'O';
+    //    	message2[1] = 'N';
+    //    	message2[2] = '\0';
+
+        	message2[0] = 0x30;
+        	message2[1] = '\0';
+
+        }
+        else{
+    //    	message2[0] = 'O';
+    //		message2[1] = 'F';
+    //		message2[2] = 'F';
+    //		message2[3] = '\0';
+
+        	message2[0] = 0x31;
+        	message2[1] = '\0';
+        }
+
+        if(g_dead_node != previous_node_status){
+            mqtt_publish(mqtt_client, topic2, message2, strlen(message2), 1, 0, mqtt_message_published_cb, (void *)topic2);
+            previous_node_status = g_dead_node;
+        }
+
+    }
+
 }
 
 /*!
@@ -563,6 +600,7 @@ void vTaskRx5ms(void * pvParameters)
     TickType_t xLastWakeTime;
     const TickType_t xPeriod = pdMS_TO_TICKS(5);
     xLastWakeTime = xTaskGetTickCount();
+    static uint16_t keep_alive_counter = 400;
 
      /* Enter the loop that defines the task behavior. */
      for(;;){
@@ -577,11 +615,21 @@ void vTaskRx5ms(void * pvParameters)
 //                     rxFrame.dataByte2, rxFrame.dataByte3, rxFrame.dataByte4, rxFrame.dataByte5,
 //                     rxFrame.dataByte6, rxFrame.dataByte7);
 
+        	 keep_alive_counter = 400;
+        	 g_dead_node = 0;
+
              battery_level[0] = rxFrame.dataByte0;
              battery_level[1] = rxFrame.dataByte1;
              battery_level[2] = rxFrame.dataByte2;
 
              rxComplete = pdFALSE;
+         }
+         else{
+        	 keep_alive_counter--;
+        	 if(keep_alive_counter == 0){
+        		 keep_alive_counter = 400;
+        		 g_dead_node = 1;
+        	 }
          }
 
      }
