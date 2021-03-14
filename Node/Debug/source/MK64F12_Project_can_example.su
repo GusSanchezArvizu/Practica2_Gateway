@@ -1,9 +1,11 @@
+fsl_gpio.h:182:20:GPIO_PortSet	16	static
+fsl_gpio.h:193:20:GPIO_PortClear	16	static
 fsl_adc16.h:367:20:ADC16_EnableHardwareTrigger	16	static
 fsl_adc16.h:491:24:ADC16_GetChannelConversionValue	16	static
-MK64F12_Project_can_example.c:95:10:get_adc_value	16	static
+MK64F12_Project_can_example.c:96:10:get_adc_value	16	static
 MK64F12_Project_can_example.c:124:13:flexcan_callback	24	static
 MK64F12_Project_can_example.c:150:6:CAN_Init	40	static
-MK64F12_Project_can_example.c:205:6:vTaskTxKeepAlive	24	static
-MK64F12_Project_can_example.c:230:6:vTaskTxAdc	32	static
-MK64F12_Project_can_example.c:269:6:vTaskRxFreqTx	72	static
-MK64F12_Project_can_example.c:312:5:main	16	static
+MK64F12_Project_can_example.c:205:6:vTaskTx10ms	32	static
+MK64F12_Project_can_example.c:242:6:vTaskTxKeepAlive	24	static
+MK64F12_Project_can_example.c:308:6:vTaskRx5ms	24	static
+MK64F12_Project_can_example.c:343:5:main	16	static

@@ -1,43 +1,43 @@
 board/pin_mux.o board/pin_mux.d: ../board/pin_mux.c \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_common.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\device/fsl_device_registers.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\device/MK64F12.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\CMSIS/core_cm4.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\CMSIS/cmsis_version.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\CMSIS/cmsis_compiler.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\CMSIS/cmsis_gcc.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\device/system_MK64F12.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\device/MK64F12_features.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_clock.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_common.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_port.h \
- C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_gpio.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_common.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\device/fsl_device_registers.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\device/MK64F12.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\CMSIS/core_cm4.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\CMSIS/cmsis_version.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\CMSIS/cmsis_compiler.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\CMSIS/cmsis_gcc.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\device/system_MK64F12.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\device/MK64F12_features.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_clock.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_common.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_port.h \
+ D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_gpio.h \
  ../board/pin_mux.h
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_common.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_common.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\device/fsl_device_registers.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\device/fsl_device_registers.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\device/MK64F12.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\device/MK64F12.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\CMSIS/core_cm4.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\CMSIS/core_cm4.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\CMSIS/cmsis_version.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\CMSIS/cmsis_version.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\CMSIS/cmsis_compiler.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\CMSIS/cmsis_compiler.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\CMSIS/cmsis_gcc.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\CMSIS/cmsis_gcc.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\device/system_MK64F12.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\device/system_MK64F12.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\device/MK64F12_features.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\device/MK64F12_features.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_clock.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_clock.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_common.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_common.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_port.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_port.h:
 
-C:\Users\HP\Documents\Archivos(D)\ITESO\8vo\ SEMESTRE\Redes\ para\ Sistemas\ Embebidos\workspace\frdmk64f_lwip_mqtt_freertos_kevin\Node\drivers/fsl_gpio.h:
+D:\kcdia\Documents\Redes_ws\p2\Node\drivers/fsl_gpio.h:
 
 ../board/pin_mux.h:
