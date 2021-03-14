@@ -251,7 +251,7 @@ void vTaskTxKeepAlive(void * pvParameters)
 
     	PRINTF("Going to tx\n");
 
-        txKeepAliveFrame.dataByte0 = 0x1; 
+        txKeepAliveFrame.dataByte0 = 0x1;
         txKeepAliveFrame.dataByte1 = 0x0;
         txKeepAliveFrame.dataByte2 = 0x0;
         txKeepAliveFrame.dataByte3 = 0x0;
@@ -318,7 +318,7 @@ void vTaskRx5ms(void * pvParameters)
         /* Perform the periodic actions here. */
         (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
         if(rxComplete == pdTRUE){
-            
+
             if (rxFrame.dataByte0 == 1) {
             	GPIO_PortClear(BOARD_LED_GPIO, 1u << BOARD_LED_GPIO_PIN);
             	 PRINTF("ON");
