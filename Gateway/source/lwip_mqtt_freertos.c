@@ -50,6 +50,7 @@
 #define DLC                    (8)
 #define MSG1TxID               (0x80)
 #define MSG1RxID               (0x25)
+#define KeepAliveID			   (0x100)
 #define SubsTopic1             ("Omar_SP/feeds/actuator")
 #define SubsTopic2             ("Omar_SP/feeds/battery-level")
 #define SubsTopic3			   ("Omar_SP/feeds/can-status")
@@ -111,8 +112,8 @@ static void connect_to_mqtt(void *ctx);
 volatile bool txComplete = pdFALSE;
 volatile bool rxComplete = pdFALSE;
 flexcan_handle_t flexcanHandle;
-flexcan_mb_transfer_t txXfer, rxXfer;
-flexcan_frame_t txFrame, rxFrame;
+flexcan_mb_transfer_t txXfer, rxXfer, rxXfer2;
+flexcan_frame_t txFrame, rxFrame, rxFrame2;
 uint8_t RxMBID;
 uint8_t battery_level[3] = {0, 0, 0};
 
@@ -133,7 +134,7 @@ static char client_id[40];
 static const struct mqtt_connect_client_info_t mqtt_client_info = {
     .client_id   = (const char *)&client_id[0],
     .client_user = "Omar_SP",
-    .client_pass = "aio_npRl68CgKgMnwu4qwe5ReS6byhOC",
+    .client_pass = "aio_IiFQ00eyR7Lgk3epSwyHER5cN2ig",
     .keep_alive  = 100,
     .will_topic  = NULL,
     .will_msg    = NULL,
@@ -518,7 +519,7 @@ void CAN_Init(void){
 
     flexcan_config_t flexcanConfig;
     flexcan_rx_mb_config_t mbConfig;
-
+    flexcan_rx_mb_config_t mbConfig2;
 
     /* Init FlexCAN module. */
     /*
@@ -550,6 +551,14 @@ void CAN_Init(void){
     /* Start receive data through Rx Message Buffer. */
     rxXfer.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
     rxXfer.frame = &rxFrame;
+
+    mbConfig2.format = kFLEXCAN_FrameFormatStandard;
+    mbConfig2.type   = kFLEXCAN_FrameTypeData;
+    mbConfig2.id     = FLEXCAN_ID_STD(KeepAliveID);
+    FLEXCAN_SetRxMbConfig(EXAMPLE_CAN, RX_MESSAGE_BUFFER_NUM, &mbConfig2, true);
+
+    rxXfer2.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
+    rxXfer2.frame = &rxFrame2;
 
     /* Setup Tx Message Buffer. */
     FLEXCAN_SetTxMbConfig(EXAMPLE_CAN, TX_MESSAGE_BUFFER_NUM, true);
@@ -598,7 +607,7 @@ void vTaskTx10ms(void * pvParameters)
 void vTaskRx5ms(void * pvParameters)
 {
     TickType_t xLastWakeTime;
-    const TickType_t xPeriod = pdMS_TO_TICKS(5);
+    const TickType_t xPeriod = pdMS_TO_TICKS(10);
     xLastWakeTime = xTaskGetTickCount();
     static uint16_t keep_alive_counter = 400;
 
@@ -630,6 +639,27 @@ void vTaskRx5ms(void * pvParameters)
         		 keep_alive_counter = 400;
         		 g_dead_node = 1;
         	 }
+         }
+
+     }
+}
+
+void vTaskRx5ms2(void * pvParameters)
+{
+    TickType_t xLastWakeTime;
+    const TickType_t xPeriod = pdMS_TO_TICKS(10);
+    xLastWakeTime = xTaskGetTickCount();
+    static uint16_t keep_alive_counter = 400;
+
+     /* Enter the loop that defines the task behavior. */
+     for(;;){
+         vTaskDelayUntil(&xLastWakeTime, xPeriod);
+
+         /* Perform the periodic actions here. */
+         (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer2);
+         if(rxComplete == pdTRUE)
+         {
+             rxComplete = pdFALSE;
          }
 
      }
@@ -702,6 +732,10 @@ int main(void)
 
     if(xTaskCreate(vTaskRx5ms,"RxFrame5m",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
         PRINTF("FAIL to create RxFrame5m");
+    }
+
+    if(xTaskCreate(vTaskRx5ms2,"RxFrame5m2",(configMINIMAL_STACK_SIZE+100),NULL,(configMAX_PRIORITIES-2),NULL) != pdPASS){
+        PRINTF("FAIL to create RxFrame5m2");
     }
 
     vTaskStartScheduler();
